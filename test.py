@@ -10,12 +10,6 @@ from PIL import Image
 from dataset.loader import CustomSample, create_wsi_dataloader, load_global_gene_order
 from models.model import MultiModalMILModel
 
-"""
-- wsi에서 중요도 높은 패치 보여주기(img)
-- 중요도 높은 gene들 뽑아주기(expr)
-- 중요도 높은 스팟 보여주기 (st)
-"""
-
 # Detect samples -> return 
 def discover_samples(root_dir):
     st_dir = os.path.join(root_dir, "st_preprocessed_global_hvg")
@@ -56,7 +50,7 @@ def compute_2d_embedding(X: np.ndarray, method: str = "umap", seed: int = 0):
 
     raise ValueError(f"Unknown method: {method}")
 
-# IO utils
+# IO util
 def save_patch_image(tensor_chw, out_path):
     """
     tensor_chw: torch.Tensor (3,H,W), range ~[0,1]
@@ -65,7 +59,7 @@ def save_patch_image(tensor_chw, out_path):
     x = (x.permute(1, 2, 0).numpy() * 255.0).astype(np.uint8)
     Image.fromarray(x).save(out_path)
 
-# attention score 높은 patch plot
+# patches with high attn score -> scatter plot
 def plot_attention_scatter(coords_raw, attn, top10_idx, out_path, title="Patch importance (MIL attn)"):
     """
     coords_raw: (N,2) torch.Tensor  (original spatial coords)
@@ -81,7 +75,7 @@ def plot_attention_scatter(coords_raw, attn, top10_idx, out_path, title="Patch i
     sizes = 10 + 200 * a_n
 
     plt.figure()
-    plt.scatter(c[:, 0], c[:, 1], s=sizes)  # 색 지정 안 함
+    plt.scatter(c[:, 0], c[:, 1], s=sizes)
 
     if top10_idx is not None and len(top10_idx) > 0:
         sel = np.array(top10_idx, dtype=np.int64)
@@ -92,12 +86,12 @@ def plot_attention_scatter(coords_raw, attn, top10_idx, out_path, title="Patch i
     plt.title(title)
     plt.xlabel("x")
     plt.ylabel("y")
-    plt.gca().invert_yaxis()  # 필요 없으면 제거
+    plt.gca().invert_yaxis()
     plt.tight_layout()
     plt.savefig(out_path, dpi=200)
     plt.close()
 
-# 중요도 높은 gene 집계
+# important gene list
 def aggregate_top_genes(gene_attn, gene_indices, mil_attn, gene_order, topk=30):
     """
     gene_attn: (N, G) torch.Tensor (per-spot attention over gene tokens)
@@ -124,7 +118,6 @@ def aggregate_top_genes(gene_attn, gene_indices, mil_attn, gene_order, topk=30):
         out.append((gname, sc))
     return out
 
-
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--root_dir", type=str, required=True)
@@ -132,7 +125,7 @@ def main():
     parser.add_argument("--out_dir", type=str, default="./xai_outputs")
     parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu")
 
-    # model params (일단 train과 통일)
+    # model params
     parser.add_argument("--num_genes", type=int, default=2000)
     parser.add_argument("--num_classes", type=int, default=2)
     parser.add_argument("--embed_dim", type=int, default=256)
@@ -162,7 +155,7 @@ def main():
         shuffle=False,
         max_spots=args.max_spots,
         root_dir=args.root_dir,
-        return_trace=True,  # loader 수정본 기준
+        return_trace=True,
     )
 
     # gene order (fallback)
@@ -205,7 +198,7 @@ def main():
             coords = batch["coords"].to(args.device)     # (N,2) normalized (model input)
             label = int(batch["label"].item())
 
-            # XAI metadata (loader 수정본 기준 key들)
+            # XAI metadata
             barcodes = batch.get("barcodes", None)            # list[str]
             patch_indices = batch.get("patch_indices", None)  # np.ndarray
             coords_raw = batch.get("coords_raw", None)        # torch.Tensor (N,2)
@@ -233,9 +226,8 @@ def main():
             a_n = (a - a_min) / denom
             sizes = 10 + 200 * a_n
 
-            # 단색 ver(size only)
             plt.figure()
-            plt.scatter(Z[:, 0], Z[:, 1], s=sizes)  # 색 지정 안 함
+            plt.scatter(Z[:, 0], Z[:, 1], s=sizes)
             plt.title("UMAP of fused spot embeddings(size=mil_attn)")
             plt.xlabel("UMAP-1")
             plt.ylabel("UMAP-2")
@@ -243,7 +235,6 @@ def main():
             plt.savefig(os.path.join(out_dir, "spot_embeds_umap.png"), dpi=200)
             plt.close()
 
-            # 색 + 크기 모두
             plt.figure()
             plt.scatter(
                 Z[:, 0], Z[:, 1],
@@ -313,7 +304,7 @@ def main():
             with open(os.path.join(out_dir, "pred.json"), "w") as f:
                 json.dump(summary, f, indent=2)
 
-            # (1) Top-k patches 저장
+            # (1) Top-k patches
             k = min(args.topk_patches, n_spots)
             topk = torch.topk(mil_attn, k=k).indices.detach().cpu().tolist()
 
@@ -329,7 +320,7 @@ def main():
                 fn += ".png"
                 save_patch_image(images[i], os.path.join(patch_dir, fn))
 
-            # (2) attention scatter (coords_raw 기반)
+            # (2) attention scatter
             if coords_raw is not None:
                 plot_attention_scatter(
                     coords_raw=coords_raw,
@@ -339,7 +330,7 @@ def main():
                     title="Patch importance (MIL attn) + Top10"
                 )
 
-            # (3) gene top list (가능할 때만)
+            # (3) gene top list
             if gene_attn is not None and gene_indices is not None and len(gene_order) > 0:
                 # gene_attn: (N,1,G) or (N,G)
                 if gene_attn.dim() == 3:
@@ -364,3 +355,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
