@@ -269,7 +269,6 @@ def main():
             pred = int(np.argmax(probs))
             n_spots = int(images.shape[0])
 
-            # attention이 없으면 XAI가 불가하므로 최소한 pred만 저장
             if mil_attn is None:
                 summary = {
                     "sample_id": sample_id,
@@ -355,4 +354,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
