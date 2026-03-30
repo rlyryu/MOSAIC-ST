@@ -17,12 +17,15 @@
 ## ✔️ Repository Structure
 ```
 .
-├── README.md          # 프로젝트 개요 (본 문서)
-├── Ideation.md        # 로젝트 아이디어 브레인스토밍 및 발전 기록
-├── GroundRule.md      # 팀 협업 규칙 및 합의 사항
-├── /src               # 소스 코드 (데이터 처리, 모델, 실험)
-├── /data              # 데이터셋 (필요 시)
-└── /docs              # 참고 문헌, 기술 문서
+├── configs/                # Experiment configuration files (YAML)
+├── dataset/                # 데이터셋 로딩 및 전처리 모듈
+├── models/                 # 모델 아키텍처 정의
+├── Project-Scenario.md     # 프로젝트 시나리오 및 연구 기획
+├── README.md               # 프로젝트 개요 (본 문서)
+├── train.py                # 기본 학습 실행 스크립트
+├── train_ablation.py       # Ablation study 학습 스크립트
+├── test.py                 # 기본 평가 실행 스크립트
+└── test_ablation.py        # Ablation study 평가 스크립트
 ```
 
 ## ✔️ Project Status & Current Progress
